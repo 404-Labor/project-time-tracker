@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as vscode from 'vscode';
+
 import simpleGit from 'simple-git';
 
 let startTime: number;
@@ -268,31 +269,58 @@ class ProjectTimeTrackerPanel {
 		}
 
 		const timeSpentByFile: { [key: string]: number } = {};
+		const timeDetailsByFile: { [key: string]: { user: string, totalTime: number }[] } = {};
 
 		for (const project in logData) {
 			for (const file in logData[project]) {
 				if (!timeSpentByFile[file]) {
 					timeSpentByFile[file] = 0;
 				}
+				if (!timeDetailsByFile[file]) {
+					timeDetailsByFile[file] = [];
+				}
+
+				const userTimeMap: { [key: string]: number } = {};
+
 				for (const entry of logData[project][file]) {
+					const userKey = `${entry.user.name} <${entry.user.email}>`;
+					if (!userTimeMap[userKey]) {
+						userTimeMap[userKey] = 0;
+					}
+					userTimeMap[userKey] += entry.timeSpent;
 					timeSpentByFile[file] += entry.timeSpent;
+				}
+
+				for (const user in userTimeMap) {
+					timeDetailsByFile[file].push({
+						user,
+						totalTime: userTimeMap[user]
+					});
 				}
 			}
 		}
 
 		const sortedFiles = Object.keys(timeSpentByFile).sort((a, b) => timeSpentByFile[b] - timeSpentByFile[a]);
 
-		this._panel.webview.html = this._getHtmlForWebview(sortedFiles, timeSpentByFile);
+		this._panel.webview.html = this._getHtmlForWebview(sortedFiles, timeSpentByFile, timeDetailsByFile);
 	}
 
-	private _getHtmlForWebview(sortedFiles: string[], timeSpentByFile: { [key: string]: number }) {
+	private _getHtmlForWebview(sortedFiles: string[], timeSpentByFile: { [key: string]: number }, timeDetailsByFile: { [key: string]: { user: string, totalTime: number }[] }) {
 		const progressBars = sortedFiles.map(file => {
 			const timeSpent = timeSpentByFile[file];
+			const details = timeDetailsByFile[file].map(detail => `
+                <li>${detail.user}: ${formatTime(detail.totalTime)}</li>
+            `).join('');
+
 			return `
                 <div>
                     <h3>${file}</h3>
                     <progress value="${timeSpent}" max="${Math.max(...Object.values(timeSpentByFile))}"></progress>
                     <span>${formatTime(timeSpent)}</span>
+                    <details>
+                        <summary>Details</summary>
+                        <ul>${details}</ul>
+                    </details>
                 </div>
             `;
 		}).join('');
@@ -304,6 +332,11 @@ class ProjectTimeTrackerPanel {
                 <meta charset="UTF-8">
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
                 <title>Project Time Tracker</title>
+                <style>
+                    details > summary {
+                        cursor: pointer;
+                    }
+                </style>
             </head>
             <body>
                 <h1>Project Time Tracker</h1>

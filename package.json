@@ -2,7 +2,7 @@
   "name": "project-time-tracker",
   "displayName": "Project Time Tracker",
   "description": "Track your time spent on projects and files within Visual Studio Code seamlessly.",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "publisher": "404-Labor",
   "engines": {
     "vscode": "^1.89.0"
