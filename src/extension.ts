@@ -1,7 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as vscode from 'vscode';
-
 import simpleGit from 'simple-git';
 
 let startTime: number;
@@ -31,6 +30,7 @@ export function activate(context: vscode.ExtensionContext) {
 	// Statusleistelement erstellen
 	statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
 	statusBarItem.text = "Time Spent: 0h 0m 0s";
+	statusBarItem.command = 'projectTimeTracker.showStats';
 	statusBarItem.show();
 	context.subscriptions.push(statusBarItem);
 
