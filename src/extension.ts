@@ -7,48 +7,79 @@ import simpleGit from 'simple-git';
 let startTime: number;
 let activeFile: string | undefined;
 let activeProject: string | undefined;
+let statusBarItem: vscode.StatusBarItem;
+let timerInterval: NodeJS.Timeout | undefined;
 
 const git = simpleGit();
+const outputChannel = vscode.window.createOutputChannel('Project Time Tracker');
 
 async function getGitUserInfo() {
 	try {
 		const userName = await git.raw(['config', 'user.name']);
 		const userEmail = await git.raw(['config', 'user.email']);
+		outputChannel.appendLine(`Git User Info: ${userName.trim()} <${userEmail.trim()}>`);
 		return { name: userName.trim(), email: userEmail.trim() };
 	} catch (error) {
-		console.error('Error getting git user info:', error);
+		outputChannel.appendLine(`Error getting git user info: ${error}`);
 		return { name: 'Unknown', email: 'unknown@example.com' };
 	}
 }
 
 export function activate(context: vscode.ExtensionContext) {
+	outputChannel.appendLine('Project Time Tracker extension is now active!');
+
+	// Statusleistelement erstellen
+	statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
+	statusBarItem.text = "Time Spent: 0h 0m 0s";
+	statusBarItem.show();
+	context.subscriptions.push(statusBarItem);
+
 	// Startzeit beim Öffnen einer Datei erfassen
 	vscode.workspace.onDidOpenTextDocument((document) => {
 		startTime = Date.now();
+		outputChannel.appendLine(`Started tracking time for file: ${document.fileName}`);
 		activeFile = document.fileName;
 		activeProject = vscode.workspace.name;
+		updateStatusBar();
+		startTimer();
 	});
 
 	// Zeit erfassen, wenn der Editor den Fokus verliert
 	vscode.window.onDidChangeWindowState((windowState) => {
+		outputChannel.appendLine('Editor window state changed');
 		if (!windowState.focused && activeFile) {
 			logTime();
+			stopTimer();
 		}
 	});
 
 	// Zeit erfassen, wenn eine andere Datei geöffnet wird
 	vscode.workspace.onDidCloseTextDocument((document) => {
+		outputChannel.appendLine('Document closed');
 		if (document.fileName === activeFile) {
 			logTime();
+			stopTimer();
 			activeFile = undefined;
 		}
 	});
 
 	// Zeit erfassen, wenn VS Code gespeichert wird
 	vscode.workspace.onDidSaveTextDocument((document) => {
+		outputChannel.appendLine('Document saved');
 		if (document.fileName === activeFile) {
 			logTime();
 			startTime = Date.now();
+		}
+	});
+
+	// Bei Änderungen der aktiven Texteditoren aktualisieren
+	vscode.window.onDidChangeActiveTextEditor((editor) => {
+		outputChannel.appendLine('Active editor changed');
+		if (editor && editor.document.fileName === activeFile) {
+			startTime = Date.now();
+			startTimer();
+		} else {
+			stopTimer();
 		}
 	});
 }
@@ -57,6 +88,7 @@ export function activate(context: vscode.ExtensionContext) {
 async function logTime() {
 	const endTime = Date.now();
 	const timeSpent = Math.round((endTime - startTime) / 1000); // Zeit in Sekunden
+	outputChannel.appendLine(`Time spent: ${timeSpent} seconds`);
 
 	// Workspace-Verzeichnis ermitteln
 	const workspaceFolder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
@@ -66,13 +98,15 @@ async function logTime() {
 
 	const { name, email } = await getGitUserInfo();
 
-	const logFilePath = path.join(workspaceFolder, '/.vscode/time_log.json');
+	const logFilePath = path.join(workspaceFolder, '.vscode/time_log.json');
+	outputChannel.appendLine(`Log file path: ${logFilePath}`);
 	let logData: any = {};
 
 	// Bestehende Log-Daten laden, falls vorhanden
 	if (fs.existsSync(logFilePath)) {
 		const existingLog = fs.readFileSync(logFilePath, 'utf8');
 		logData = JSON.parse(existingLog);
+		outputChannel.appendLine(`Existing log data: ${JSON.stringify(logData)}`);
 	}
 
 	if (!logData[activeProject!]) {
@@ -93,8 +127,43 @@ async function logTime() {
 	startTime = endTime;
 }
 
+// Timer starten
+function startTimer() {
+	outputChannel.appendLine('Timer started');
+	if (timerInterval) {
+		clearInterval(timerInterval);
+	}
+	timerInterval = setInterval(updateStatusBar, 1000);
+}
+
+// Timer stoppen
+function stopTimer() {
+	outputChannel.appendLine('Timer stopped');
+	if (timerInterval) {
+		clearInterval(timerInterval);
+		timerInterval = undefined;
+	}
+}
+
+// Statusleiste aktualisieren
+function updateStatusBar() {
+	const currentTime = Date.now();
+	const elapsedSeconds = Math.round((currentTime - startTime) / 1000);
+	statusBarItem.text = `Time Spent: ${formatTime(elapsedSeconds)}`;
+}
+
+// Zeit formatieren
+function formatTime(seconds: number): string {
+	const h = Math.floor(seconds / 3600);
+	const m = Math.floor((seconds % 3600) / 60);
+	const s = seconds % 60;
+	return `${h}h ${m}m ${s}s`;
+}
+
 export function deactivate() {
+	outputChannel.appendLine('Project Time Tracker extension is now deactivated');
 	if (activeFile) {
 		logTime();
 	}
+	stopTimer();
 }

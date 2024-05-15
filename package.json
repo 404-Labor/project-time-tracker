@@ -2,7 +2,7 @@
   "name": "project-time-tracker",
   "displayName": "Project Time Tracker",
   "description": "Track your time spent on projects and files within Visual Studio Code seamlessly.",
-  "version": "0.0.1",
+  "version": "0.0.4",
   "publisher": "404-Labor",
   "engines": {
     "vscode": "^1.89.0"
@@ -24,7 +24,9 @@
     "onDidOpenTextDocument",
     "onDidChangeWindowState",
     "onDidCloseTextDocument",
-    "onDidSaveTextDocument"
+    "onDidSaveTextDocument",
+    "onDidChangeActiveTextEditor",
+    "*"
   ],
   "main": "./out/extension.js",
   "scripts": {
