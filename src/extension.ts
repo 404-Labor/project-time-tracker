@@ -34,6 +34,12 @@ export function activate(context: vscode.ExtensionContext) {
 	statusBarItem.show();
 	context.subscriptions.push(statusBarItem);
 
+	// Befehl zum Öffnen der Webview registrieren
+	const disposable = vscode.commands.registerCommand('projectTimeTracker.showStats', () => {
+		ProjectTimeTrackerPanel.createOrShow(context.extensionUri);
+	});
+	context.subscriptions.push(disposable);
+
 	// Startzeit beim Öffnen einer Datei erfassen
 	vscode.workspace.onDidOpenTextDocument((document) => {
 		startTime = Date.now();
@@ -166,4 +172,147 @@ export function deactivate() {
 		logTime();
 	}
 	stopTimer();
+}
+
+class ProjectTimeTrackerPanel {
+	public static currentPanel: ProjectTimeTrackerPanel | undefined;
+
+	public static readonly viewType = 'projectTimeTracker';
+
+	private readonly _panel: vscode.WebviewPanel;
+	private readonly _extensionUri: vscode.Uri;
+	private _disposables: vscode.Disposable[] = [];
+
+	public static createOrShow(extensionUri: vscode.Uri) {
+		const column = vscode.window.activeTextEditor ? vscode.window.activeTextEditor.viewColumn : undefined;
+
+		// If we already have a panel, show it.
+		if (ProjectTimeTrackerPanel.currentPanel) {
+			ProjectTimeTrackerPanel.currentPanel._panel.reveal(column);
+			ProjectTimeTrackerPanel.currentPanel._update();
+			return;
+		}
+
+		// Otherwise, create a new panel.
+		const panel = vscode.window.createWebviewPanel(
+			ProjectTimeTrackerPanel.viewType,
+			'Project Time Tracker',
+			column ?? vscode.ViewColumn.One,
+			{
+				// Enable javascript in the webview
+				enableScripts: true,
+
+				// And restrict the webview to only loading content from our extension's `media` directory.
+				localResourceRoots: [vscode.Uri.joinPath(extensionUri, 'media')]
+			}
+		);
+
+		ProjectTimeTrackerPanel.currentPanel = new ProjectTimeTrackerPanel(panel, extensionUri);
+	}
+
+	private constructor(panel: vscode.WebviewPanel, extensionUri: vscode.Uri) {
+		this._panel = panel;
+		this._extensionUri = extensionUri;
+
+		// Set the webview's initial html content
+		this._update();
+
+		// Listen for when the panel is disposed
+		// This happens when the user closes the panel or when the panel is closed programmatically
+		this._panel.onDidDispose(() => this.dispose(), null, this._disposables);
+
+		// Update the content based on view changes
+		this._panel.onDidChangeViewState(
+			e => {
+				if (this._panel.visible) {
+					this._update();
+				}
+			},
+			null,
+			this._disposables
+		);
+
+		// Handle messages from the webview
+		this._panel.webview.onDidReceiveMessage(
+			message => {
+				if (message.command === 'alert') {
+					vscode.window.showErrorMessage(message.text);
+				}
+			},
+			null,
+			this._disposables
+		);
+	}
+
+	public dispose() {
+		ProjectTimeTrackerPanel.currentPanel = undefined;
+
+		// Clean up our resources
+		this._panel.dispose();
+
+		while (this._disposables.length) {
+			const x = this._disposables.pop();
+			if (x) {
+				x.dispose();
+			}
+		}
+	}
+
+	private async _update() {
+		const logFilePath = path.join(vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? '', '.vscode/time_log.json');
+		let logData: any = {};
+
+		if (fs.existsSync(logFilePath)) {
+			const existingLog = fs.readFileSync(logFilePath, 'utf8');
+			logData = JSON.parse(existingLog);
+		}
+
+		const timeSpentByFile: { [key: string]: number } = {};
+
+		for (const project in logData) {
+			for (const file in logData[project]) {
+				if (!timeSpentByFile[file]) {
+					timeSpentByFile[file] = 0;
+				}
+				for (const entry of logData[project][file]) {
+					timeSpentByFile[file] += entry.timeSpent;
+				}
+			}
+		}
+
+		const sortedFiles = Object.keys(timeSpentByFile).sort((a, b) => timeSpentByFile[b] - timeSpentByFile[a]);
+
+		this._panel.webview.html = this._getHtmlForWebview(sortedFiles, timeSpentByFile);
+	}
+
+	private _getHtmlForWebview(sortedFiles: string[], timeSpentByFile: { [key: string]: number }) {
+		const progressBars = sortedFiles.map(file => {
+			const timeSpent = timeSpentByFile[file];
+			return `
+                <div>
+                    <h3>${file}</h3>
+                    <progress value="${timeSpent}" max="${Math.max(...Object.values(timeSpentByFile))}"></progress>
+                    <span>${formatTime(timeSpent)}</span>
+                </div>
+            `;
+		}).join('');
+
+		return `
+            <!DOCTYPE html>
+            <html lang="en">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>Project Time Tracker</title>
+            </head>
+            <body>
+                <h1>Project Time Tracker</h1>
+                ${progressBars}
+                <script>
+                    const vscode = acquireVsCodeApi();
+                </script>
+            </body>
+            </html>
+        `;
+	}
 }
