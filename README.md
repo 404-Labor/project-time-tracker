@@ -1,71 +1,34 @@
-# project-tracker README
+# Project Time Tracker
 
-This is the README for your extension "project-tracker". After writing up a brief description, we recommend including the following sections.
+![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)
+![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)
+![License](https://img.shields.io/badge/license-MIT-green.svg)
+
+The Project Time Tracker extension helps you keep track of the time you spend working on different projects and files within Visual Studio Code. This extension is perfect for developers who need to log their working hours or simply want to improve their productivity by analyzing their time management.
+
+![Project Time Tracker Icon](images/icon.png)
 
 ## Features
 
-Describe specific features of your extension including screenshots of your extension in action. Image paths are relative to this README file.
+- Automatically tracks the time spent on each file and project.
+- Logs the time spent on a file when it is closed or the editor loses focus.
+- Saves log data to a `time_log.txt` file within your workspace.
+- Simple and non-intrusive, integrates smoothly into your workflow.
 
-For example if there is an image subfolder under your extension project workspace:
+## How It Works
 
-\!\[feature X\]\(images/feature-x.png\)
+1. Open a file in your project.
+2. The extension starts tracking the time you spend on that file.
+3. When you save the file, switch to another file, or lose focus on the editor, the time spent is logged.
+4. The log data includes the project name, file name, and time spent in milliseconds.
 
-> Tip: Many popular extensions utilize animations. This is an excellent way to show off your extension! We recommend short, focused animations that are easy to follow.
+## Installation
 
-## Requirements
+1. Open Visual Studio Code.
+2. Go to the Extensions view by clicking on the Extensions icon in the Activity Bar on the side of the window.
+3. Search for `Project Time Tracker`.
+4. Click Install.
 
-If you have any requirements or dependencies, add a section describing those and how to install and configure them.
+## Usage
 
-## Extension Settings
-
-Include if your extension adds any VS Code settings through the `contributes.configuration` extension point.
-
-For example:
-
-This extension contributes the following settings:
-
-* `myExtension.enable`: Enable/disable this extension.
-* `myExtension.thing`: Set to `blah` to do something.
-
-## Known Issues
-
-Calling out known issues can help limit users opening duplicate issues against your extension.
-
-## Release Notes
-
-Users appreciate release notes as you update your extension.
-
-### 1.0.0
-
-Initial release of ...
-
-### 1.0.1
-
-Fixed issue #.
-
-### 1.1.0
-
-Added features X, Y, and Z.
-
----
-
-## Following extension guidelines
-
-Ensure that you've read through the extensions guidelines and follow the best practices for creating your extension.
-
-* [Extension Guidelines](https://code.visualstudio.com/api/references/extension-guidelines)
-
-## Working with Markdown
-
-You can author your README using Visual Studio Code. Here are some useful editor keyboard shortcuts:
-
-* Split the editor (`Cmd+\` on macOS or `Ctrl+\` on Windows and Linux).
-* Toggle preview (`Shift+Cmd+V` on macOS or `Shift+Ctrl+V` on Windows and Linux).
-* Press `Ctrl+Space` (Windows, Linux, macOS) to see a list of Markdown snippets.
-
-## For more information
-
-* [Visual Studio Code's Markdown Support](http://code.visualstudio.com/docs/languages/markdown)
-* [Markdown Syntax Reference](https://help.github.com/articles/markdown-basics/)
-
-**Enjoy!**
+Simply open and work on your files as usual. The extension will automatically track and log your time. You can view the logs in the `time_log.txt` file located in your workspace directory.
