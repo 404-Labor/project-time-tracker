@@ -2,9 +2,24 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as vscode from 'vscode';
 
+import simpleGit from 'simple-git';
+
 let startTime: number;
 let activeFile: string | undefined;
 let activeProject: string | undefined;
+
+const git = simpleGit();
+
+async function getGitUserInfo() {
+	try {
+		const userName = await git.raw(['config', 'user.name']);
+		const userEmail = await git.raw(['config', 'user.email']);
+		return { name: userName.trim(), email: userEmail.trim() };
+	} catch (error) {
+		console.error('Error getting git user info:', error);
+		return { name: 'Unknown', email: 'unknown@example.com' };
+	}
+}
 
 export function activate(context: vscode.ExtensionContext) {
 	// Startzeit beim Öffnen einer Datei erfassen
@@ -39,9 +54,9 @@ export function activate(context: vscode.ExtensionContext) {
 }
 
 // Funktion, um die Zeit zu protokollieren
-function logTime() {
+async function logTime() {
 	const endTime = Date.now();
-	const timeSpent = endTime - startTime;
+	const timeSpent = Math.round((endTime - startTime) / 1000); // Zeit in Sekunden
 
 	// Workspace-Verzeichnis ermitteln
 	const workspaceFolder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
@@ -49,10 +64,32 @@ function logTime() {
 		return;
 	}
 
-	const logFilePath = path.join(workspaceFolder, 'time_log.txt');
-	const logData = `Project: ${activeProject}\nFile: ${activeFile}\nTime Spent: ${timeSpent} ms\n\n`;
+	const { name, email } = await getGitUserInfo();
 
-	fs.appendFileSync(logFilePath, logData, 'utf8');
+	const logFilePath = path.join(workspaceFolder, '/.vscode/time_log.json');
+	let logData: any = {};
+
+	// Bestehende Log-Daten laden, falls vorhanden
+	if (fs.existsSync(logFilePath)) {
+		const existingLog = fs.readFileSync(logFilePath, 'utf8');
+		logData = JSON.parse(existingLog);
+	}
+
+	if (!logData[activeProject!]) {
+		logData[activeProject!] = {};
+	}
+
+	if (!logData[activeProject!][activeFile!]) {
+		logData[activeProject!][activeFile!] = [];
+	}
+
+	logData[activeProject!][activeFile!].push({
+		date: new Date().toISOString(),
+		user: { name, email },
+		timeSpent
+	});
+
+	fs.writeFileSync(logFilePath, JSON.stringify(logData, null, 2), 'utf8');
 	startTime = endTime;
 }
 
