@@ -497,35 +497,43 @@ class ProjectTimeTrackerPanel {
 							endDate.setHours(23, 59, 59, 999);
 						}
 
-						console.log('Filtering results from'+ startDate +' to '+ endDate +' with search term '+searchTerm);
-
 						document.querySelectorAll('.file-entry').forEach(entry => {
 							const file = entry.getAttribute('data-file').toLowerCase();
 							const users = entry.getAttribute('data-users').toLowerCase();
 							const details = entry.querySelectorAll('details ul li');
 							let show = false;
+							let filteredTimeSpent = 0;
 
-							for (const detail of details) {
+							details.forEach(detail => {
 								const user = detail.textContent.split(': ')[0];
 								const dateText = detail.getAttribute('data-date');
 								const timeSpent = parseInt(detail.getAttribute('data-time'), 10);
 								
-								// Handle date ranges
 								const dateRanges = dateText.split(',');
+								let userTimeSpent = 0;
+								let displayText = '';
+
 								for (const dateRange of dateRanges) {
 									const date = new Date(dateRange);
 									if ((startDate === null || date >= startDate) && (endDate === null || date <= endDate)) {
-										if (file.includes(searchTerm) || users.includes(searchTerm)) {
-											show = true;
-											break;
-										}
+										userTimeSpent = timeSpent;
+										show = true;
 									}
 								}
 
-								if (show) break;
-							}
+								if (userTimeSpent > 0) {
+									displayText =  user +': '+ formatTime(userTimeSpent);
+									detail.textContent = displayText;
+									filteredTimeSpent += userTimeSpent;
+								} else {
+									detail.textContent = '';
+								}
+							});
 
-							if (show) {
+							entry.querySelector('progress').value = filteredTimeSpent;
+							entry.querySelector('span').textContent = formatTime(filteredTimeSpent);
+
+							if (show && (file.includes(searchTerm) || users.includes(searchTerm))) {
 								entry.style.display = '';
 							} else {
 								entry.style.display = 'none';
