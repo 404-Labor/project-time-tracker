@@ -89,8 +89,8 @@ Here are some screenshots showing the Project Time Tracker in action:
 
 ### Tracking Time in a File
 
-![Tracking Time](images/tracking-time.png)
+![Tracking Time](images/tracking-time.jpg)
 
 ### Log File
 
-![Log File](images/log-file.png)
+![Log File](images/log-file.jpg)
