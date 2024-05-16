@@ -344,7 +344,7 @@ class ProjectTimeTrackerPanel {
 		}
 
 		const timeSpentByFile: { [key: string]: number } = {};
-		const timeDetailsByFile: { [key: string]: { user: string, totalTime: number }[] } = {};
+		const timeDetailsByFile: { [key: string]: { user: string, totalTime: number, date: string }[] } = {};
 
 		for (const project in logData) {
 			for (const file in logData[project]) {
@@ -355,21 +355,25 @@ class ProjectTimeTrackerPanel {
 					timeDetailsByFile[file] = [];
 				}
 
-				const userTimeMap: { [key: string]: number } = {};
+				const userTimeMap: { [key: string]: { totalTime: number, dates: string[] } } = {};
 
 				for (const entry of logData[project][file]) {
 					const userKey = `${entry.user.name} <${entry.user.email}>`;
 					if (!userTimeMap[userKey]) {
-						userTimeMap[userKey] = 0;
+						userTimeMap[userKey] = { totalTime: 0, dates: [] };
 					}
-					userTimeMap[userKey] += entry.timeSpent;
+					userTimeMap[userKey].totalTime += entry.timeSpent;
+					userTimeMap[userKey].dates.push(entry.date);
 					timeSpentByFile[file] += entry.timeSpent;
 				}
 
 				for (const user in userTimeMap) {
-					timeDetailsByFile[file].push({
-						user,
-						totalTime: userTimeMap[user]
+					userTimeMap[user].dates.forEach(date => {
+						timeDetailsByFile[file].push({
+							user,
+							totalTime: userTimeMap[user].totalTime,
+							date
+						});
 					});
 				}
 			}
@@ -380,119 +384,167 @@ class ProjectTimeTrackerPanel {
 		this._panel.webview.html = this._getHtmlForWebview(sortedFiles, timeSpentByFile, timeDetailsByFile);
 	}
 
-	private _getHtmlForWebview(sortedFiles: string[], timeSpentByFile: { [key: string]: number }, timeDetailsByFile: { [key: string]: { user: string, totalTime: number }[] }) {
+	private _getHtmlForWebview(sortedFiles: string[], timeSpentByFile: { [key: string]: number }, timeDetailsByFile: { [key: string]: { user: string, totalTime: number, date: string }[] }) {
 		const searchAndFilter = `
-            <div>
-                <input type="text" id="search" placeholder="Search files or users..." oninput="filterResults()">
-            </div>
-        `;
+        <div>
+            <input type="text" id="search" placeholder="Search files or users..." oninput="filterResults()">
+            <label for="startDate">Start Date:</label>
+            <input type="date" id="startDate" onchange="filterResults()">
+            <label for="endDate">End Date:</label>
+            <input type="date" id="endDate" onchange="filterResults()">
+        </div>
+    `;
 
 		const exportButtons = `
-            <div class="flex-row">
-                <button onclick="exportData()">Export JSON</button>
-                <button onclick="exportCsv()">Export CSV</button>
-            </div>
-        `;
+        <div class="flex-row">
+            <button onclick="exportData()">Export JSON</button>
+            <button onclick="exportCsv()">Export CSV</button>
+        </div>
+    `;
 
 		const progressBars = sortedFiles.map(file => {
 			const timeSpent = timeSpentByFile[file];
-			const details = timeDetailsByFile[file].map(detail => `
-                <li>${detail.user}: ${formatTime(detail.totalTime)}</li>
-            `).join('');
+			const htmlDetails: string[] = [];
+
+			timeDetailsByFile[file].forEach(detail => {
+				const html = `<li data-date="${detail.date}">${detail.user}: ${formatTime(detail.totalTime)}</li>`;
+				console.log(html);
+				
+				if (!htmlDetails.find(item => item.includes(detail.user))) {
+					console.log(true);
+					htmlDetails.push(html);
+				}
+			});
 
 			return `
-                <div class="file-entry" data-file="${file.toLowerCase()}" data-users="${timeDetailsByFile[file].map(d => d.user.toLowerCase()).join(', ')}">
-                    <h3>${file}</h3>
-                    <progress value="${timeSpent}" max="${Math.max(...Object.values(timeSpentByFile))}"></progress>
-                    <span>${formatTime(timeSpent)}</span>
-                    <details>
-                        <summary>Details</summary>
-                        <ul>${details}</ul>
-                    </details>
-                </div>
-            `;
+            <div class="file-entry" data-file="${file.toLowerCase()}" data-users="${timeDetailsByFile[file].map(d => d.user.toLowerCase()).join(', ')}">
+                <h3>${file}</h3>
+                <progress value="${timeSpent}" max="${Math.max(...Object.values(timeSpentByFile))}"></progress>
+                <span>${formatTime(timeSpent)}</span>
+                <details>
+                    <summary>Details</summary>
+                    <ul>${htmlDetails.join('')}</ul>
+                </details>
+            </div>
+        `;
 		}).join('');
 
 		return `
-            <!DOCTYPE html>
-            <html lang="en">
-            <head>
-                <meta charset="UTF-8">
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <title>Project Time Tracker</title>
-                <style>
-                    details > summary {
-                        cursor: pointer;
-                    }
-                    .file-entry {
-                        margin-bottom: 1em;
-                    }
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Project Time Tracker</title>
+            <style>
+                details > summary {
+                    cursor: pointer;
+                }
+                .file-entry {
+                    margin-bottom: 1em;
+                }
 
-                    input[type="text"] {
-                        padding: 10px;
-                        box-sizing: border-box;
-                        border: 2px solid #ccc;
-                        border-radius: 24px;
-                    }
+                input[type="text"], input[type="date"] {
+                    padding: 10px;
+                    box-sizing: border-box;
+                    border: 2px solid #ccc;
+                    border-radius: 24px;
+                    margin-right: 10px;
+                }
 
-                    button {
-                        padding: 10px 16px;
-                        border: none;
-                        border-radius: 24px;
-                        cursor: pointer;
-                    }
+                button {
+                    padding: 10px 16px;
+                    border: none;
+                    border-radius: 24px;
+                    cursor: pointer;
+                }
 
-                    button:hover {
-                        background-color: #f0f0f0;
-                    }
+                button:hover {
+                    background-color: #f0f0f0;
+                }
 
-                    button:focus, input[type="text"]:focus {
-                        outline: none;
-                    }
+                button:focus, input[type="text"]:focus, input[type="date"]:focus {
+                    outline: none;
+                }
 
-                    .flex-row {
-                        display: flex;
-                        flex-direction: row;
-                        gap: 16px;
-                    }
-                </style>
-            </head>
-            <body>
-                <h1>Project Time Tracker</h1>
+                .flex-row {
+                    display: flex;
+                    flex-direction: row;
+                    gap: 16px;
+                }
+            </style>
+        </head>
+        <body>
+            <h1>Project Time Tracker</h1>
 
-				<div class="flex-row">
-					${searchAndFilter}
-					${exportButtons}
-				</div>
+            <div class="flex-row">
+                ${searchAndFilter}
+                ${exportButtons}
+            </div>
 
-                ${progressBars}
+            ${progressBars}
 
-                <script>
-                    const vscode = acquireVsCodeApi();
+            <script>
+                const vscode = acquireVsCodeApi();
 
-                    function filterResults() {
-                        const searchTerm = document.getElementById('search').value.toLowerCase();
-                        document.querySelectorAll('.file-entry').forEach(entry => {
-                            const file = entry.getAttribute('data-file').toLowerCase();
-                            const users = entry.getAttribute('data-users').toLowerCase();
-                            if (file.includes(searchTerm) || users.includes(searchTerm)) {
-                                entry.style.display = '';
-                            } else {
-                                entry.style.display = 'none';
-                            }
-                        });
-                    }
+               	function filterResults() {
+					const searchTerm = document.getElementById('search').value.toLowerCase();
+					const startDateInput = document.getElementById('startDate').value;
+					const endDateInput = document.getElementById('endDate').value;
 
-                    function exportData() {
-                        vscode.postMessage({ command: 'export' });
-                    }
+					const startDate = startDateInput ? new Date(startDateInput) : null;
+					const endDate = endDateInput ? new Date(endDateInput) : null;
 
-                    function exportCsv() {
-                        vscode.postMessage({ command: 'exportCsv' });
-                    }
-                </script>
-            </body>
-            </html>
-        `;
+					// Set startDate and endDate to the start of the day (00:00:00)
+					if (startDate) {
+						startDate.setHours(0, 0, 0, 0);
+					}
+					if (endDate) {
+						endDate.setHours(23, 59, 59, 999);
+					}
+
+					document.querySelectorAll('.file-entry').forEach(entry => {
+						const file = entry.getAttribute('data-file').toLowerCase();
+						const users = entry.getAttribute('data-users').toLowerCase();
+						const details = entry.querySelectorAll('details ul li');
+						let show = false;
+
+						for (const detail of details) {
+							const dateText = detail.getAttribute('data-date');
+							const date = dateText ? new Date(dateText) : null;
+							
+							// Set the date to the start of the day for comparison
+							if (date) {
+								date.setHours(0, 0, 0, 0);
+							}
+
+							if ((startDate === null || date >= startDate) && 
+								(endDate === null || date <= endDate)) {
+								if (file.includes(searchTerm) || users.includes(searchTerm)) {
+									show = true;
+									break;
+								}
+							}
+						}
+
+						if (show) {
+							entry.style.display = '';
+						} else {
+							entry.style.display = 'none';
+						}
+					});
+				}
+
+                function exportData() {
+                    vscode.postMessage({ command: 'export' });
+                }
+
+                function exportCsv() {
+                    vscode.postMessage({ command: 'exportCsv' });
+                }
+            </script>
+        </body>
+        </html>
+    `;
 	}
 }
