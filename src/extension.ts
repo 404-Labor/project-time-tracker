@@ -385,33 +385,15 @@ class ProjectTimeTrackerPanel {
 	}
 
 	private _getHtmlForWebview(sortedFiles: string[], timeSpentByFile: { [key: string]: number }, timeDetailsByFile: { [key: string]: { user: string, totalTime: number, date: string }[] }) {
-		const searchAndFilter = `
-        <div>
-            <input type="text" id="search" placeholder="Search files or users..." oninput="filterResults()">
-            <label for="startDate">Start Date:</label>
-            <input type="date" id="startDate" onchange="filterResults()">
-            <label for="endDate">End Date:</label>
-            <input type="date" id="endDate" onchange="filterResults()">
-        </div>
-    `;
-
-		const exportButtons = `
-        <div class="flex-row">
-            <button onclick="exportData()">Export JSON</button>
-            <button onclick="exportCsv()">Export CSV</button>
-        </div>
-    `;
 
 		const progressBars = sortedFiles.map(file => {
 			const timeSpent = timeSpentByFile[file];
 			const htmlDetails: string[] = [];
 
 			timeDetailsByFile[file].forEach(detail => {
-				const html = `<li data-date="${detail.date}">${detail.user}: ${formatTime(detail.totalTime)}</li>`;
-				console.log(html);
-				
+				const html = `<li data-date="${detail.date}" data-time="${detail.totalTime}">${detail.user}: ${formatTime(detail.totalTime)}</li>`;
+
 				if (!htmlDetails.find(item => item.includes(detail.user))) {
-					console.log(true);
 					htmlDetails.push(html);
 				}
 			});
@@ -431,120 +413,140 @@ class ProjectTimeTrackerPanel {
 
 		return `
         <!DOCTYPE html>
-        <html lang="en">
-        <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Project Time Tracker</title>
-            <style>
-                details > summary {
-                    cursor: pointer;
-                }
-                .file-entry {
-                    margin-bottom: 1em;
-                }
-
-                input[type="text"], input[type="date"] {
-                    padding: 10px;
-                    box-sizing: border-box;
-                    border: 2px solid #ccc;
-                    border-radius: 24px;
-                    margin-right: 10px;
-                }
-
-                button {
-                    padding: 10px 16px;
-                    border: none;
-                    border-radius: 24px;
-                    cursor: pointer;
-                }
-
-                button:hover {
-                    background-color: #f0f0f0;
-                }
-
-                button:focus, input[type="text"]:focus, input[type="date"]:focus {
-                    outline: none;
-                }
-
-                .flex-row {
-                    display: flex;
-                    flex-direction: row;
-                    gap: 16px;
-                }
-            </style>
-        </head>
-        <body>
-            <h1>Project Time Tracker</h1>
-
-            <div class="flex-row">
-                ${searchAndFilter}
-                ${exportButtons}
-            </div>
-
-            ${progressBars}
-
-            <script>
-                const vscode = acquireVsCodeApi();
-
-               	function filterResults() {
-					const searchTerm = document.getElementById('search').value.toLowerCase();
-					const startDateInput = document.getElementById('startDate').value;
-					const endDateInput = document.getElementById('endDate').value;
-
-					const startDate = startDateInput ? new Date(startDateInput) : null;
-					const endDate = endDateInput ? new Date(endDateInput) : null;
-
-					// Set startDate and endDate to the start of the day (00:00:00)
-					if (startDate) {
-						startDate.setHours(0, 0, 0, 0);
+			<html lang="en">
+			<head>
+				<meta charset="UTF-8">
+				<meta name="viewport" content="width=device-width, initial-scale=1.0">
+				<title>Project Time Tracker</title>
+				<style>
+					details > summary {
+						cursor: pointer;
 					}
-					if (endDate) {
-						endDate.setHours(23, 59, 59, 999);
+					.file-entry {
+						margin-bottom: 1em;
 					}
+					input[type="text"], input[type="date"] {
+						padding: 10px;
+						box-sizing: border-box;
+						border: 2px solid #ccc;
+						border-radius: 24px;
+						margin-right: 10px;
+					}
+					button {
+						padding: 10px 16px;
+						border: none;
+						border-radius: 24px;
+						cursor: pointer;
+					}
+					button:hover {
+						background-color: #f0f0f0;
+					}
+					button:focus, input[type="text"]:focus, input[type="date"]:focus {
+						outline: none;
+					}
+					.flex-row {
+						display: flex;
+						flex-direction: row;
+						gap: 16px;
+					}
+				</style>
+			</head>
+			<body>
+				<h1>Project Time Tracker</h1>
+				<div class="flex-row">
+					<div>
+						<input type="text" id="search" placeholder="Search files or users..." oninput="filterResults()">
+						<label for="startDate">Start Date:</label>
+						<input type="date" id="startDate" onchange="filterResults()">
+						<label for="endDate">End Date:</label>
+						<input type="date" id="endDate" onchange="filterResults()">
+					</div>
+					<div class="flex-row">
+						<button onclick="exportData()">Export JSON</button>
+						<button onclick="exportCsv()">Export CSV</button>
+					</div>
+				</div>
 
-					document.querySelectorAll('.file-entry').forEach(entry => {
-						const file = entry.getAttribute('data-file').toLowerCase();
-						const users = entry.getAttribute('data-users').toLowerCase();
-						const details = entry.querySelectorAll('details ul li');
-						let show = false;
+				<!-- Placeholder for progress bars -->
+				<div id="progressBars">
+					${progressBars}
+				</div>
 
-						for (const detail of details) {
-							const dateText = detail.getAttribute('data-date');
-							const date = dateText ? new Date(dateText) : null;
-							
-							// Set the date to the start of the day for comparison
-							if (date) {
-								date.setHours(0, 0, 0, 0);
-							}
+				<script>
+					const vscode = acquireVsCodeApi();
 
-							if ((startDate === null || date >= startDate) && 
-								(endDate === null || date <= endDate)) {
-								if (file.includes(searchTerm) || users.includes(searchTerm)) {
-									show = true;
-									break;
+					function filterResults() {
+						const searchTerm = document.getElementById('search').value.toLowerCase();
+						const startDateInput = document.getElementById('startDate').value;
+						const endDateInput = document.getElementById('endDate').value;
+
+						const startDate = startDateInput ? new Date(startDateInput) : null;
+						const endDate = endDateInput ? new Date(endDateInput) : null;
+
+						if (startDate) {
+							startDate.setHours(0, 0, 0, 0);
+						}
+						if (endDate) {
+							endDate.setHours(23, 59, 59, 999);
+						}
+
+						document.querySelectorAll('.file-entry').forEach(entry => {
+							const file = entry.getAttribute('data-file').toLowerCase();
+							const users = entry.getAttribute('data-users').toLowerCase();
+							const details = entry.querySelectorAll('details ul li');
+							let show = false;
+							let totalTime = 0;
+
+							for (const detail of details) {
+								const dateText = detail.getAttribute('data-date');
+								const date = dateText ? new Date(dateText) : null;
+								const timeSpent = parseInt(detail.getAttribute('data-time'), 10);
+
+								if (date) {
+									date.setHours(0, 0, 0, 0);
+								}
+
+								if ((startDate === null || date >= startDate) && 
+									(endDate === null || date <= endDate)) {
+									if (file.includes(searchTerm) || users.includes(searchTerm)) {
+										totalTime += timeSpent;
+										show = true;
+									}
 								}
 							}
-						}
 
-						if (show) {
-							entry.style.display = '';
-						} else {
-							entry.style.display = 'none';
-						}
+							if (show) {
+								entry.style.display = '';
+								const timeElement = entry.querySelector('span');
+								timeElement.textContent = formatTime(totalTime);
+							} else {
+								entry.style.display = 'none';
+							}
+						});
+					}
+
+					function formatTime(seconds) {
+						const h = Math.floor(seconds / 3600);
+						const m = Math.floor((seconds % 3600) / 60);
+						const s = seconds % 60;
+						return h + 'h ' + m + 'm ' + s + 's';
+					}
+
+					function exportData() {
+						vscode.postMessage({ command: 'export' });
+					}
+
+					function exportCsv() {
+						vscode.postMessage({ command: 'exportCsv' });
+					}
+
+					// Initialize the filter results once the document is fully loaded
+					document.addEventListener('DOMContentLoaded', (event) => {
+						filterResults();
 					});
-				}
-
-                function exportData() {
-                    vscode.postMessage({ command: 'export' });
-                }
-
-                function exportCsv() {
-                    vscode.postMessage({ command: 'exportCsv' });
-                }
-            </script>
-        </body>
-        </html>
+				</script>
+			</body>
+			</html>
     `;
 	}
 }
