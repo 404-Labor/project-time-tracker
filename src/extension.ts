@@ -236,13 +236,29 @@ class ProjectTimeTrackerPanel {
 		// Handle messages from the webview
 		this._panel.webview.onDidReceiveMessage(
 			message => {
-				if (message.command === 'alert') {
-					vscode.window.showErrorMessage(message.text);
+				switch (message.command) {
+					case 'alert':
+						vscode.window.showErrorMessage(message.text);
+						return;
+					case 'export':
+						this._exportData();
+						return;
 				}
 			},
 			null,
 			this._disposables
 		);
+	}
+
+	private _exportData() {
+		const logFilePath = path.join(vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? '', '.vscode/time_log.json');
+		const savePath = path.join(vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? '', 'time_log_export.json');
+		if (fs.existsSync(logFilePath)) {
+			fs.copyFileSync(logFilePath, savePath);
+			vscode.window.showInformationMessage('Protokolldaten wurden exportiert: ' + savePath);
+		} else {
+			vscode.window.showErrorMessage('Keine Protokolldaten gefunden.');
+		}
 	}
 
 	public dispose() {
@@ -306,6 +322,18 @@ class ProjectTimeTrackerPanel {
 	}
 
 	private _getHtmlForWebview(sortedFiles: string[], timeSpentByFile: { [key: string]: number }, timeDetailsByFile: { [key: string]: { user: string, totalTime: number }[] }) {
+		const searchAndFilter = `
+            <div>
+                <input type="text" id="search" placeholder="Search files or users..." oninput="filterResults()">
+            </div>
+        `;
+
+		const exportButton = `
+            <div>
+                <button onclick="exportData()">Export Data</button>
+            </div>
+        `;
+
 		const progressBars = sortedFiles.map(file => {
 			const timeSpent = timeSpentByFile[file];
 			const details = timeDetailsByFile[file].map(detail => `
@@ -313,7 +341,7 @@ class ProjectTimeTrackerPanel {
             `).join('');
 
 			return `
-                <div>
+                <div class="file-entry" data-file="${file.toLowerCase()}" data-users="${timeDetailsByFile[file].map(d => d.user.toLowerCase()).join(', ')}">
                     <h3>${file}</h3>
                     <progress value="${timeSpent}" max="${Math.max(...Object.values(timeSpentByFile))}"></progress>
                     <span>${formatTime(timeSpent)}</span>
@@ -336,13 +364,35 @@ class ProjectTimeTrackerPanel {
                     details > summary {
                         cursor: pointer;
                     }
+                    .file-entry {
+                        margin-bottom: 1em;
+                    }
                 </style>
             </head>
             <body>
                 <h1>Project Time Tracker</h1>
+                ${exportButton}
+                ${searchAndFilter}
                 ${progressBars}
                 <script>
                     const vscode = acquireVsCodeApi();
+
+                    function filterResults() {
+                        const searchTerm = document.getElementById('search').value.toLowerCase();
+                        document.querySelectorAll('.file-entry').forEach(entry => {
+                            const file = entry.getAttribute('data-file').toLowerCase();
+                            const users = entry.getAttribute('data-users').toLowerCase();
+                            if (file.includes(searchTerm) || users.includes(searchTerm)) {
+                                entry.style.display = '';
+                            } else {
+                                entry.style.display = 'none';
+                            }
+                        });
+                    }
+
+                    function exportData() {
+                        vscode.postMessage({ command: 'export' });
+                    }
                 </script>
             </body>
             </html>
