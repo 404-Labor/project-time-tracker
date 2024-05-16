@@ -351,7 +351,7 @@ class ProjectTimeTrackerPanel {
 
 		const exportButton = `
             <div>
-                <button onclick="exportData()">Export Data</button>
+                <button onclick="exportData()">Export JSON</button>
             </div>
         `;
 
@@ -385,15 +385,48 @@ class ProjectTimeTrackerPanel {
                     details > summary {
                         cursor: pointer;
                     }
+					
                     .file-entry {
                         margin-bottom: 1em;
                     }
+
+					.flex-row{
+						display: flex;
+						flex-direction: row;
+						gap: 16px;
+					}
+
+					input[type="text"] {
+					padding: 10px;
+					box-sizing: border-box;
+					border: 2px solid #ccc;
+					border-radius: 24px;
+					}
+
+					button {
+						padding: 10px 16px;
+						border: none;
+						border-radius: 24px;
+						cursor: pointer;
+					}
+
+					button:hover {
+						background-color: #f0f0f0;
+					}
+
+					button:focus, input[type="text"]:focus {
+						outline: none;
+					}
                 </style>
             </head>
             <body>
                 <h1>Project Time Tracker</h1>
-                ${exportButton}
-                ${searchAndFilter}
+
+				<div class="flex-row">
+					${exportButton}
+					${searchAndFilter}
+				</div>
+                
                 ${progressBars}
                 <script>
                     const vscode = acquireVsCodeApi();
