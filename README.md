@@ -1,7 +1,6 @@
 # Project Time Tracker
 
 ![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)
-![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 
 The Project Time Tracker extension helps you keep track of the time you spend working on different projects and files within Visual Studio Code. This extension is perfect for developers who need to log their working hours or simply want to improve their productivity by analyzing their time management.
@@ -14,6 +13,9 @@ The Project Time Tracker extension helps you keep track of the time you spend wo
 - Logs the time spent on a file when it is closed or the editor loses focus.
 - Saves log data to a `time_log.json` file within your workspace.
 - Includes the Git username and email of the user who worked on the file.
+- Displays the time spent on the active file in the status bar.
+- Provides a webview panel to display detailed time tracking statistics.
+- Allows exporting of log data as JSON or CSV.
 - Simple and non-intrusive, integrates smoothly into your workflow.
 
 ## How It Works
@@ -22,6 +24,8 @@ The Project Time Tracker extension helps you keep track of the time you spend wo
 2. The extension starts tracking the time you spend on that file.
 3. When you save the file, switch to another file, or lose focus on the editor, the time spent is logged.
 4. The log data includes the project name, file name, time spent in seconds, and the Git username and email of the user.
+5. The total time spent is displayed in the status bar.
+6. You can view detailed statistics and export data using the webview panel.
 
 ## Installation
 
@@ -32,7 +36,13 @@ The Project Time Tracker extension helps you keep track of the time you spend wo
 
 ## Usage
 
-Simply open and work on your files as usual. The extension will automatically track and log your time. You can view the logs in the `time_log.txt` file located in your workspace directory.
+Simply open and work on your files as usual. The extension will automatically track and log your time. You can view the logs in the `time_log.json` file located in your workspace directory.
+
+To view detailed statistics or export your log data:
+
+1. Click on the "Time Spent" status bar item.
+2. The Project Time Tracker panel will open.
+3. Use the filters and export buttons as needed.
 
 ## Example Log
 
