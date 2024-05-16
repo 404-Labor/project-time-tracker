@@ -391,7 +391,7 @@ class ProjectTimeTrackerPanel {
 			const htmlDetails: string[] = [];
 
 			timeDetailsByFile[file].forEach(detail => {
-				const html = `<li data-date="${detail.date}" data-time="${detail.totalTime}">${detail.user}: ${formatTime(detail.totalTime)}</li>`;
+				const html = `<li data-date="${timeDetailsByFile[file].filter(item => item.user === detail.user).map(item => item.date.split('T')[0]).filter((date, index, self) => self.indexOf(date) === index)}" data-time="${detail.totalTime}">${detail.user}: ${formatTime(detail.totalTime)}</li>`;
 
 				if (!htmlDetails.find(item => item.includes(detail.user))) {
 					htmlDetails.push(html);
@@ -490,35 +490,36 @@ class ProjectTimeTrackerPanel {
 							endDate.setHours(23, 59, 59, 999);
 						}
 
+						console.log('Filtering results from'+ startDate +' to '+ endDate +' with search term '+searchTerm);
+
 						document.querySelectorAll('.file-entry').forEach(entry => {
 							const file = entry.getAttribute('data-file').toLowerCase();
 							const users = entry.getAttribute('data-users').toLowerCase();
 							const details = entry.querySelectorAll('details ul li');
 							let show = false;
-							let totalTime = 0;
 
 							for (const detail of details) {
+								const user = detail.textContent.split(': ')[0];
 								const dateText = detail.getAttribute('data-date');
-								const date = dateText ? new Date(dateText) : null;
 								const timeSpent = parseInt(detail.getAttribute('data-time'), 10);
-
-								if (date) {
-									date.setHours(0, 0, 0, 0);
-								}
-
-								if ((startDate === null || date >= startDate) && 
-									(endDate === null || date <= endDate)) {
-									if (file.includes(searchTerm) || users.includes(searchTerm)) {
-										totalTime += timeSpent;
-										show = true;
+								
+								// Handle date ranges
+								const dateRanges = dateText.split(',');
+								for (const dateRange of dateRanges) {
+									const date = new Date(dateRange);
+									if ((startDate === null || date >= startDate) && (endDate === null || date <= endDate)) {
+										if (file.includes(searchTerm) || users.includes(searchTerm)) {
+											show = true;
+											break;
+										}
 									}
 								}
+
+								if (show) break;
 							}
 
 							if (show) {
 								entry.style.display = '';
-								const timeElement = entry.querySelector('span');
-								timeElement.textContent = formatTime(totalTime);
 							} else {
 								entry.style.display = 'none';
 							}
