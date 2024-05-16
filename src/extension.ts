@@ -262,7 +262,10 @@ class ProjectTimeTrackerPanel {
 						vscode.window.showErrorMessage(message.text);
 						return;
 					case 'export':
-						this._exportData();
+						this._exportData('json');
+						return;
+					case 'exportCsv':
+						this._exportData('csv');
 						return;
 				}
 			},
@@ -271,15 +274,50 @@ class ProjectTimeTrackerPanel {
 		);
 	}
 
-	private _exportData() {
-		const logFilePath = path.join(vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? '', '.vscode/time_log.json');
-		const savePath = path.join(vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? '', 'time_log_export.json');
-		if (fs.existsSync(logFilePath)) {
-			fs.copyFileSync(logFilePath, savePath);
-			vscode.window.showInformationMessage('Protokolldaten wurden exportiert: ' + savePath);
-		} else {
-			vscode.window.showErrorMessage('Keine Protokolldaten gefunden.');
+	private async _exportData(format: 'json' | 'csv') {
+		const options: vscode.SaveDialogOptions = {
+			saveLabel: `Export as ${format.toUpperCase()}`,
+			filters: {
+				[format.toUpperCase()]: [format]
+			}
+		};
+		const uri = await vscode.window.showSaveDialog(options);
+		if (uri) {
+			const logFilePath = path.join(vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? '', '.vscode/time_log.json');
+			if (fs.existsSync(logFilePath)) {
+				const logData = fs.readFileSync(logFilePath, 'utf8');
+				if (format === 'json') {
+					fs.writeFileSync(uri.fsPath, logData, 'utf8');
+				} else if (format === 'csv') {
+					const csvData = this._convertToCsv(JSON.parse(logData));
+					fs.writeFileSync(uri.fsPath, csvData, 'utf8');
+				}
+				vscode.window.showInformationMessage(`Protokolldaten wurden als ${format.toUpperCase()} exportiert: ${uri.fsPath}`);
+			} else {
+				vscode.window.showErrorMessage('Keine Protokolldaten gefunden.');
+			}
 		}
+	}
+
+	private _convertToCsv(jsonData: any): string {
+		const rows: string[] = [];
+		rows.push('Project,File,Date,User,Email,TimeSpent');
+		for (const project in jsonData) {
+			for (const file in jsonData[project]) {
+				for (const entry of jsonData[project][file]) {
+					const row = [
+						project,
+						file,
+						entry.date,
+						entry.user.name,
+						entry.user.email,
+						entry.timeSpent
+					].join(',');
+					rows.push(row);
+				}
+			}
+		}
+		return rows.join('\n');
 	}
 
 	public dispose() {
@@ -349,9 +387,10 @@ class ProjectTimeTrackerPanel {
             </div>
         `;
 
-		const exportButton = `
-            <div>
+		const exportButtons = `
+            <div class="flex-row">
                 <button onclick="exportData()">Export JSON</button>
+                <button onclick="exportCsv()">Export CSV</button>
             </div>
         `;
 
@@ -385,49 +424,49 @@ class ProjectTimeTrackerPanel {
                     details > summary {
                         cursor: pointer;
                     }
-					
                     .file-entry {
                         margin-bottom: 1em;
                     }
 
-					.flex-row{
-						display: flex;
-						flex-direction: row;
-						gap: 16px;
-					}
+                    input[type="text"] {
+                        padding: 10px;
+                        box-sizing: border-box;
+                        border: 2px solid #ccc;
+                        border-radius: 24px;
+                    }
 
-					input[type="text"] {
-					padding: 10px;
-					box-sizing: border-box;
-					border: 2px solid #ccc;
-					border-radius: 24px;
-					}
+                    button {
+                        padding: 10px 16px;
+                        border: none;
+                        border-radius: 24px;
+                        cursor: pointer;
+                    }
 
-					button {
-						padding: 10px 16px;
-						border: none;
-						border-radius: 24px;
-						cursor: pointer;
-					}
+                    button:hover {
+                        background-color: #f0f0f0;
+                    }
 
-					button:hover {
-						background-color: #f0f0f0;
-					}
+                    button:focus, input[type="text"]:focus {
+                        outline: none;
+                    }
 
-					button:focus, input[type="text"]:focus {
-						outline: none;
-					}
+                    .flex-row {
+                        display: flex;
+                        flex-direction: row;
+                        gap: 16px;
+                    }
                 </style>
             </head>
             <body>
                 <h1>Project Time Tracker</h1>
 
 				<div class="flex-row">
-					${exportButton}
 					${searchAndFilter}
+					${exportButtons}
 				</div>
-                
+
                 ${progressBars}
+
                 <script>
                     const vscode = acquireVsCodeApi();
 
@@ -446,6 +485,10 @@ class ProjectTimeTrackerPanel {
 
                     function exportData() {
                         vscode.postMessage({ command: 'export' });
+                    }
+
+                    function exportCsv() {
+                        vscode.postMessage({ command: 'exportCsv' });
                     }
                 </script>
             </body>
