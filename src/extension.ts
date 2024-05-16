@@ -132,11 +132,14 @@ async function logTime() {
 		logData[activeProject!] = {};
 	}
 
-	if (!logData[activeProject!][activeFile!]) {
-		logData[activeProject!][activeFile!] = [];
+	// Relativen Pfad für die aktive Datei erstellen
+	const relativeFilePath = path.relative(workspaceFolder, activeFile);
+
+	if (!logData[activeProject!][relativeFilePath]) {
+		logData[activeProject!][relativeFilePath] = [];
 	}
 
-	logData[activeProject!][activeFile!].push({
+	logData[activeProject!][relativeFilePath].push({
 		date: new Date().toISOString(),
 		user: { name, email },
 		timeSpent
@@ -386,6 +389,8 @@ class ProjectTimeTrackerPanel {
 
 	private _getHtmlForWebview(sortedFiles: string[], timeSpentByFile: { [key: string]: number }, timeDetailsByFile: { [key: string]: { user: string, totalTime: number, date: string }[] }) {
 
+		const totalSpentTime = Object.values(timeSpentByFile).reduce((acc, cur) => acc + cur, 0);
+
 		const progressBars = sortedFiles.map(file => {
 			const timeSpent = timeSpentByFile[file];
 			const htmlDetails: string[] = [];
@@ -399,20 +404,20 @@ class ProjectTimeTrackerPanel {
 			});
 
 			return `
-            <div class="file-entry" data-file="${file.toLowerCase()}" data-users="${timeDetailsByFile[file].map(d => d.user.toLowerCase()).join(', ')}">
-                <h3>${file}</h3>
-                <progress value="${timeSpent}" max="${Math.max(...Object.values(timeSpentByFile))}"></progress>
-                <span>${formatTime(timeSpent)}</span>
-                <details>
-                    <summary>Details</summary>
-                    <ul>${htmlDetails.join('')}</ul>
-                </details>
-            </div>
-        `;
+				<div class="file-entry" data-file="${file.toLowerCase()}" data-users="${timeDetailsByFile[file].map(d => d.user.toLowerCase()).join(', ')}">
+					<h3>${file}</h3>
+					<progress value="${timeSpent}" max="${Math.max(...Object.values(timeSpentByFile))}"></progress>
+					<span>${formatTime(timeSpent)}</span>
+					<details>
+						<summary>Details</summary>
+						<ul>${htmlDetails.join('')}</ul>
+					</details>
+				</div>
+			`;
 		}).join('');
 
 		return `
-        <!DOCTYPE html>
+			<!DOCTYPE html>
 			<html lang="en">
 			<head>
 				<meta charset="UTF-8">
@@ -466,6 +471,8 @@ class ProjectTimeTrackerPanel {
 						<button onclick="exportCsv()">Export CSV</button>
 					</div>
 				</div>
+
+				<h2>Total Time Spent: ${formatTime(totalSpentTime)}</h2>
 
 				<!-- Placeholder for progress bars -->
 				<div id="progressBars">
@@ -548,6 +555,6 @@ class ProjectTimeTrackerPanel {
 				</script>
 			</body>
 			</html>
-    `;
+		`;
 	}
 }
