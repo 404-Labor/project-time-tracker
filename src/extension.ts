@@ -43,12 +43,14 @@ export function activate(context: vscode.ExtensionContext) {
 
 	// Startzeit beim Öffnen einer Datei erfassen
 	vscode.workspace.onDidOpenTextDocument((document) => {
-		startTime = Date.now();
-		outputChannel.appendLine(`Started tracking time for file: ${document.fileName}`);
-		activeFile = document.fileName;
-		activeProject = vscode.workspace.name;
-		updateStatusBar();
-		startTimer();
+		if (isFileInWorkspace(document.fileName)) {
+			startTime = Date.now();
+			outputChannel.appendLine(`Started tracking time for file: ${document.fileName}`);
+			activeFile = document.fileName;
+			activeProject = vscode.workspace.name;
+			updateStatusBar();
+			startTimer();
+		}
 	});
 
 	// Zeit erfassen, wenn der Editor den Fokus verliert
@@ -72,8 +74,8 @@ export function activate(context: vscode.ExtensionContext) {
 
 	// Zeit erfassen, wenn VS Code gespeichert wird
 	vscode.workspace.onDidSaveTextDocument((document) => {
-		outputChannel.appendLine('Document saved');
 		if (document.fileName === activeFile) {
+			outputChannel.appendLine('Document saved');
 			logTime();
 			startTime = Date.now();
 		}
@@ -82,17 +84,27 @@ export function activate(context: vscode.ExtensionContext) {
 	// Bei Änderungen der aktiven Texteditoren aktualisieren
 	vscode.window.onDidChangeActiveTextEditor((editor) => {
 		outputChannel.appendLine('Active editor changed');
-		if (editor && editor.document.fileName === activeFile) {
-			startTime = Date.now();
-			startTimer();
+		if (editor && isFileInWorkspace(editor.document.fileName)) {
+			if (editor.document.fileName === activeFile) {
+				startTime = Date.now();
+				startTimer();
+			} else {
+				stopTimer();
+				activeFile = editor.document.fileName;
+				startTime = Date.now();
+				startTimer();
+			}
 		} else {
 			stopTimer();
+			activeFile = undefined;
 		}
 	});
 }
 
 // Funktion, um die Zeit zu protokollieren
 async function logTime() {
+	if (!activeFile) return;
+
 	const endTime = Date.now();
 	const timeSpent = Math.round((endTime - startTime) / 1000); // Zeit in Sekunden
 	outputChannel.appendLine(`Time spent: ${timeSpent} seconds`);
@@ -165,6 +177,15 @@ function formatTime(seconds: number): string {
 	const m = Math.floor((seconds % 3600) / 60);
 	const s = seconds % 60;
 	return `${h}h ${m}m ${s}s`;
+}
+
+// Überprüfen, ob die Datei im Projektverzeichnis liegt
+function isFileInWorkspace(file: string): boolean {
+	const workspaceFolders = vscode.workspace.workspaceFolders;
+	if (!workspaceFolders) {
+		return false;
+	}
+	return workspaceFolders.some(folder => file.startsWith(folder.uri.fsPath));
 }
 
 export function deactivate() {
