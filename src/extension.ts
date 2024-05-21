@@ -117,8 +117,15 @@ async function logTime() {
 
 	const { name, email } = await getGitUserInfo();
 
-	const logFilePath = path.join(workspaceFolder, '.vscode/time_log.json');
+	const logDirPath = path.join(workspaceFolder, '.vscode');
+	const logFilePath = path.join(logDirPath, 'time_log.json');
 	outputChannel.appendLine(`Log file path: ${logFilePath}`);
+
+	// Überprüfen und ggf. Erstellen des .vscode-Ordners
+	if (!fs.existsSync(logDirPath)) {
+		fs.mkdirSync(logDirPath);
+	}
+
 	let logData: any = {};
 
 	// Bestehende Log-Daten laden, falls vorhanden
